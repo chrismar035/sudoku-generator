@@ -24,12 +24,11 @@ func main() {
 
 	indexes := randomizeIndexes()
 	var removed []removedSquare
-	i := 0
 
 	solver := solver.NewMultiBacktrackingSolver()
 
-	for {
-		index := indexes[i]
+	for _, index := range indexes {
+		fmt.Println(index)
 		removed = append(removed, removedSquare{index: index, value: puzzle[index]})
 		puzzle[index] = 0
 
@@ -41,12 +40,8 @@ func main() {
 			fmt.Println(puzzle)
 			return
 		}
-		i++
-		if i > 80 {
-			fmt.Println("Couldn't find puzzle")
-			return
-		}
 	}
+	fmt.Println("Couldn't find puzzle")
 }
 
 func randomizeIndexes() []int {
