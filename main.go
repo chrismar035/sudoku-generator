@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -14,34 +15,47 @@ type removedSquare struct {
 }
 
 func main() {
-	var grid solver.Grid
-	randomizer := solver.NewRandBacktrackingSolver()
 
-	puzzle := randomizer.Solve(grid)
-	solution := puzzle
-	fmt.Println("Solution:")
-	fmt.Println(solution)
+	for i := 0; i < 4; i++ {
+		solution := getShuffledSolution()
+		puzzle, err := puzzleFromSolution(solution)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Println(solution)
+		} else {
+			fmt.Println(puzzle)
+			fmt.Println(solution)
+		}
+		fmt.Println("-----------")
+	}
+}
 
+func puzzleFromSolution(solution solver.Grid) (solver.Grid, error) {
+	puzzle := solution
 	indexes := randomizeIndexes()
 	var removed []removedSquare
 
-	solver := solver.NewMultiBacktrackingSolver()
+	multiSolver := solver.NewMultiBacktrackingSolver()
 
 	for _, index := range indexes {
-		fmt.Println(index)
 		removed = append(removed, removedSquare{index: index, value: puzzle[index]})
 		puzzle[index] = 0
 
-		if len(solver.Solve(puzzle)) > 1 {
+		if len(multiSolver.Solve(puzzle)) > 1 {
 			last := removed[len(removed)-1]
 			puzzle[last.index] = last.value
 
-			fmt.Println("\nPuzzle:")
-			fmt.Println(puzzle)
-			return
+			return puzzle, nil
 		}
 	}
-	fmt.Println("Couldn't find puzzle")
+	return solver.Grid{}, errors.New("Couldn't find puzzle")
+}
+
+func getShuffledSolution() solver.Grid {
+	var grid solver.Grid
+	randomizer := solver.NewRandBacktrackingSolver()
+
+	return randomizer.Solve(grid)
 }
 
 func randomizeIndexes() []int {
