@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"math/rand"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/chrismar035/sudoku-solver"
@@ -14,19 +18,43 @@ type removedSquare struct {
 	value int
 }
 
+type postParams struct {
+	Puzzle   solver.Grid `json:"puzzle"`
+	Solution solver.Grid `json:"solution"`
+}
+
 func main() {
+	url := os.Getenv("API_ROOT")
+	logger := log.New(os.Stdout,
+		"Generator: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
 
 	for i := 0; i < 4; i++ {
 		solution := getShuffledSolution()
 		puzzle, err := puzzleFromSolution(solution)
 		if err != nil {
-			fmt.Println(err)
-			fmt.Println(solution)
+			logger.Println("Error generating puzzle", solution, err)
+			// Noop; onto the next
 		} else {
-			fmt.Println(puzzle)
-			fmt.Println(solution)
+			params := postParams{Puzzle: puzzle, Solution: solution}
+			jsonStr, err := json.Marshal(params)
+			if err != nil {
+				logger.Println("Unable to marshal puzzle", puzzle, solution)
+				continue
+			}
+
+			req, err := http.NewRequest("POST", url+"/puzzle", bytes.NewBuffer(jsonStr))
+			req.Header.Set("Content-Type", "application/json")
+
+			client := &http.Client{}
+			_, err = client.Do(req)
+			if err != nil {
+				logger.Println("Unable to submit puzzle", err)
+				continue
+			}
 		}
-		fmt.Println("-----------")
+		// fmt.Println("-----------")
+		break
 	}
 }
 
