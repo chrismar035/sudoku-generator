@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chrismar035/sudoku-solver"
@@ -23,13 +25,41 @@ type postParams struct {
 	Solution solver.Grid `json:"solution"`
 }
 
+type Streaker struct {
+	count int
+	which string
+}
+
+func (s *Streaker) Count(which string) {
+	if s.count == 0 {
+		s.which = which
+		s.count = 1
+		return
+	}
+
+	if s.which == which {
+		s.count++
+		if s.count%5 == 0 {
+			message := "{\"text\": \"Currently in a streak of " + strconv.Itoa(s.count) + " " + s.which + "\"}"
+			postToSlack(message)
+		}
+	} else {
+		message := "{\"text\": \"Broke a streak of " + strconv.Itoa(s.count) + " " + s.which + "\"}"
+		postToSlack(message)
+
+		s.which = which
+		s.count = 1
+	}
+}
+
 func main() {
 	url := os.Getenv("API_ROOT")
 	logger := log.New(os.Stdout,
 		"Generator: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
+	streaker := Streaker{}
 
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		solution := getShuffledSolution()
 		puzzle, err := puzzleFromSolution(solution)
 		if err != nil {
@@ -50,12 +80,23 @@ func main() {
 			_, err = client.Do(req)
 			if err != nil {
 				logger.Println("Unable to submit puzzle", err)
+				streaker.Count("duplicates")
 				continue
+			} else {
+				streaker.Count("adds")
 			}
 		}
 		// fmt.Println("-----------")
-		break
 	}
+}
+
+func postToSlack(message string) {
+	url := "https://hooks.slack.com/services/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"
+	req, _ := http.NewRequest("POST", url, strings.NewReader(message))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	_, _ = client.Do(req)
 }
 
 func puzzleFromSolution(solution solver.Grid) (solver.Grid, error) {
