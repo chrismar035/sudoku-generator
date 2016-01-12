@@ -59,6 +59,7 @@ func main() {
 		log.Ldate|log.Ltime|log.Lshortfile)
 	streaker := Streaker{}
 
+	logger.Println("Starting loop")
 	for {
 		solution := getShuffledSolution()
 		puzzle, err := puzzleFromSolution(solution)
@@ -85,7 +86,9 @@ func main() {
 				streaker.Count("adds")
 			}
 		}
+		logger.Println("Iteration")
 	}
+	logger.Println("Out of loop. Ending.")
 }
 
 func postToSlack(message string) {
