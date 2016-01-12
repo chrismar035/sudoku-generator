@@ -59,12 +59,11 @@ func main() {
 		log.Ldate|log.Ltime|log.Lshortfile)
 	streaker := Streaker{}
 
-	for i := 0; i < 10; i++ {
+	for {
 		solution := getShuffledSolution()
 		puzzle, err := puzzleFromSolution(solution)
 		if err != nil {
 			logger.Println("Error generating puzzle", solution, err)
-			// Noop; onto the next
 		} else {
 			params := postParams{Puzzle: puzzle, Solution: solution}
 			jsonStr, err := json.Marshal(params)
@@ -86,7 +85,6 @@ func main() {
 				streaker.Count("adds")
 			}
 		}
-		// fmt.Println("-----------")
 	}
 }
 
