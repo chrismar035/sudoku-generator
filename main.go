@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,31 +25,17 @@ type postParams struct {
 	Solution solver.Grid `json:"solution"`
 }
 
-type Streaker struct {
-	count int
-	which string
+type Sudoku struct {
+	Id       string  `json:"id"`
+	Puzzle   [81]int `json:"puzzle"`
+	Solution [81]int `json:"solution"`
+	Name     string  `json:"name"`
 }
 
-func (s *Streaker) Count(which string) {
-	if s.count == 0 {
-		s.which = which
-		s.count = 1
-		return
-	}
-
-	if s.which == which {
-		s.count++
-		if s.count%5 == 0 {
-			message := "{\"text\": \"Currently in a streak of " + strconv.Itoa(s.count) + " " + s.which + "\"}"
-			postToSlack(message)
-		}
-	} else {
-		message := "{\"text\": \"Broke a streak of " + strconv.Itoa(s.count) + " " + s.which + "\"}"
-		postToSlack(message)
-
-		s.which = which
-		s.count = 1
-	}
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+	Id      string `json:"id"`
 }
 
 func main() {
@@ -57,7 +43,6 @@ func main() {
 	logger := log.New(os.Stdout,
 		"Generator: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-	streaker := Streaker{}
 
 	logger.Println("Starting loop")
 	for {
@@ -77,13 +62,15 @@ func main() {
 			req.Header.Set("Content-Type", "application/json")
 
 			client := &http.Client{}
-			_, err = client.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				logger.Println("Unable to submit puzzle", err)
-				streaker.Count("duplicates")
+				errorResponse := errorFromBody(resp)
+				postToSlack("Found duplicate: " + errorResponse.Id)
 				continue
 			} else {
-				streaker.Count("adds")
+				sudoku := sudokuFromBody(resp)
+				postToSlack("Added: " + sudoku.Id)
 			}
 		}
 		logger.Println("Iteration")
@@ -144,4 +131,34 @@ func randomizeIndexes() []int {
 	}
 
 	return mixed
+}
+
+func sudokuFromBody(r *http.Response) Sudoku {
+	var sudoku Sudoku
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return Sudoku{}
+	}
+	if err := r.Body.Close(); err != nil {
+		return Sudoku{}
+	}
+	if err := json.Unmarshal(body, &sudoku); err != nil {
+		return Sudoku{}
+	}
+	return sudoku
+}
+
+func errorFromBody(r *http.Response) ErrorResponse {
+	var response ErrorResponse
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return ErrorResponse{}
+	}
+	if err := r.Body.Close(); err != nil {
+		return ErrorResponse{}
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return ErrorResponse{}
+	}
+	return response
 }
