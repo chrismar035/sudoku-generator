@@ -15,6 +15,10 @@ import (
 	"github.com/chrismar035/sudoku-solver"
 )
 
+var logger = log.New(os.Stdout,
+	"Generator: ",
+	log.Ldate|log.Ltime|log.Lshortfile)
+
 type removedSquare struct {
 	index int
 	value int
@@ -40,9 +44,6 @@ type ErrorResponse struct {
 
 func main() {
 	url := os.Getenv("API_ROOT")
-	logger := log.New(os.Stdout,
-		"Generator: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
 
 	logger.Println("Starting loop")
 	for {
@@ -66,11 +67,12 @@ func main() {
 			if err != nil {
 				logger.Println("Unable to submit puzzle", err)
 				errorResponse := errorFromBody(resp)
-				postToSlack("Found duplicate: " + errorResponse.Id)
+				postToSlack("{ \"text\": \"Found Duplicate: " + errorResponse.Id + "\" }")
 				continue
 			} else {
 				sudoku := sudokuFromBody(resp)
-				postToSlack("Added: " + sudoku.Id)
+				logger.Println("Added:", sudoku.Id)
+				postToSlack("{ \"text\": \"Added: " + sudoku.Id + "\" }")
 			}
 		}
 		logger.Println("Iteration")
@@ -84,7 +86,20 @@ func postToSlack(message string) {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
-	_, _ = client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Println("Failed to post to slack:", err)
+		return
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		logger.Println("Error reading slack response:", err)
+		return
+	}
+
+	logger.Println("Slack response:", string(body))
+
 }
 
 func puzzleFromSolution(solution solver.Grid) (solver.Grid, error) {
@@ -137,12 +152,16 @@ func sudokuFromBody(r *http.Response) Sudoku {
 	var sudoku Sudoku
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		logger.Println("Error reading sudoku:", err)
 		return Sudoku{}
 	}
 	if err := r.Body.Close(); err != nil {
+		logger.Println("Error closing body:", err)
 		return Sudoku{}
 	}
+	logger.Println("sudoku body:", body)
 	if err := json.Unmarshal(body, &sudoku); err != nil {
+		logger.Println("Error unmarshaling sudoku:", err)
 		return Sudoku{}
 	}
 	return sudoku
@@ -152,12 +171,15 @@ func errorFromBody(r *http.Response) ErrorResponse {
 	var response ErrorResponse
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		logger.Println("Error reading error:", err)
 		return ErrorResponse{}
 	}
 	if err := r.Body.Close(); err != nil {
+		logger.Println("Error closing body:", err)
 		return ErrorResponse{}
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
+		logger.Println("Error unmarshaling error:", err)
 		return ErrorResponse{}
 	}
 	return response
