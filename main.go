@@ -107,13 +107,14 @@ func puzzleFromSolution(solution solver.Grid) (solver.Grid, error) {
 	indexes := randomizeIndexes()
 	var removed []removedSquare
 
-	multiSolver := solver.NewMultiBacktrackingSolver()
+	singleSolver := solver.NewSingleBacktrackingSolver()
 
 	for _, index := range indexes {
 		removed = append(removed, removedSquare{index: index, value: puzzle[index]})
 		puzzle[index] = 0
 
-		if len(multiSolver.Solve(puzzle)) > 1 {
+		_, err := singleSolver.Solve(puzzle)
+		if err != nil && err.Error() == "Multiple solutions found" {
 			last := removed[len(removed)-1]
 			puzzle[last.index] = last.value
 
@@ -127,7 +128,8 @@ func getShuffledSolution() solver.Grid {
 	var grid solver.Grid
 	randomizer := solver.NewRandBacktrackingSolver()
 
-	return randomizer.Solve(grid)
+	random, _ := randomizer.Solve(grid)
+	return random
 }
 
 func randomizeIndexes() []int {
