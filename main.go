@@ -72,7 +72,7 @@ func main() {
 			} else {
 				sudoku := sudokuFromBody(resp)
 				logger.Println("Added:", sudoku.Id)
-				postToSlack("{ \"text\": \"Added: " + sudoku.Id + "\" }")
+				// postToSlack("{ \"text\": \"Added: " + sudoku.Id + "\" }")
 			}
 		}
 		logger.Println("Iteration")
@@ -99,7 +99,6 @@ func postToSlack(message string) {
 	}
 
 	logger.Println("Slack response:", string(body))
-
 }
 
 func puzzleFromSolution(solution solver.Grid) (solver.Grid, error) {
